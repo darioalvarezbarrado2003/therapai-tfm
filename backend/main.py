@@ -22,10 +22,10 @@ app.add_middleware(
 )
 
 client_openai = AsyncOpenAI(
-    api_key="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"
+    api_key="OPENAI_API_KEY"
 )
 
-MONGO_URI = "mongodb+srv://Carlos:hBFLS8vFkdcJubhf@cluster0.xo6sn.mongodb.net/?appName=Cluster0"
+MONGO_URI = "MONGO_URI"
 
 client = AsyncIOMotorClient(MONGO_URI)
 db = client.tfm_psicologia
@@ -839,7 +839,7 @@ async def eliminar_alumno(id_alumno: str):
 # Inicializamos el cliente de Anthropic. 
 # OJO: Sustituye esto por tu API Key real que copiaste en el Paso 1
 client_anthropic = AsyncAnthropic(
-    api_key="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"
+    api_key="ANTHROPIC_API_KEY"
 )
 
 # 1. Creamos el "molde" para entender lo que envía el Vue
