@@ -21,7 +21,7 @@ async function registrarProfesor() {
       throw new Error('La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula y un número.')
     }
 
-    const response = await fetch('http://127.0.0.1:8000/api/register', {
+    const response = await fetch('https://therapai-tfm.onrender.com/api/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
