@@ -15,11 +15,15 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://therapai-tfm.vercel.app"], # Pon aquí la URL real de tu Vercel
+    allow_origins=["*"],  # Probemos con asterisco para descartar cualquier fallo de URL exacta
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return {"message": "CORS preflight"}
 
 app.add_middleware(
     CORSMiddleware,
