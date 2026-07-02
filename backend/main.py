@@ -10,6 +10,7 @@ from datetime import datetime
 from openai import AsyncOpenAI
 import json
 from pydantic import BaseModel
+import traceback
 
 app = FastAPI()
 
@@ -652,23 +653,40 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-# 2. La función de login corregida
+
 @app.post("/api/login")
-async def login(datos: LoginRequest):
-    # Buscamos al usuario en Mongo
-    user = await db.Usuarios.find_one({"email": datos.email})
+async def login(datos: dict): # Volvemos al dict por si el frontend manda la info rara
+    try:
+        # 1. Intentamos leer los datos
+        email = datos.get("email")
+        password = datos.get("password")
+        
+        if not email or not password:
+            raise ValueError("Falta el email o la contraseña en la petición")
 
-    # Si no existe o la contraseña no cuadra, lanzamos error 401
-    if not user or user.get("password") != datos.password:
-        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+        # 2. Intentamos conectar a la base de datos
+        user = await db.Usuarios.find_one({"email": email})
 
-    # EL ARREGLO DEL ERROR 500: Convertimos el ObjectId de Mongo a String
-    user["_id"] = str(user["_id"])
+        # 3. Verificamos credenciales
+        if not user or user.get("password") != password:
+            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-    # Por seguridad profesional, borramos la contraseña antes de enviar los datos a Vue
-    user.pop("password", None)
+        # 4. Limpiamos el ID conflictivo de Mongo
+        user["_id"] = str(user["_id"])
+        
+        return user
 
-    return user
+    except HTTPException as http_e:
+        # Si es un error 401 de contraseña incorrecta, lo dejamos pasar
+        raise http_e
+    except Exception as e:
+        # ¡LA TRAMPA! Si CUALQUIER OTRA COSA falla, extraemos el error exacto
+        error_exacto = str(e)
+        detalle_tecnico = traceback.format_exc()
+        print(f"💥 ERROR EN LOGIN: {detalle_tecnico}") # Esto forzará que salga en el Log de Render
+        
+        # Y además te lo enviamos a Vercel para que lo leas en Chrome
+        raise HTTPException(status_code=500, detail=f"¡Te cacé! El error real es: {error_exacto}")
 
 class UsuarioUpdate(BaseModel):
     nombre: str
