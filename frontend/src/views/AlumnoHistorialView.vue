@@ -79,7 +79,7 @@ async function cargarHistorial() {
     }
 
     const response = await fetch(
-      `http://localhost:8000/api/sesiones/alumno/${usuarioInfo._id}`
+      `https://therapai-tfm.onrender.com/api/sesiones/alumno/${usuarioInfo._id}`
     )
 
     if (!response.ok) {

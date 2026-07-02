@@ -112,7 +112,7 @@ async function cargarHistorialProfesor() {
     }
 
     const response = await fetch(
-      `http://localhost:8000/api/sesiones/profesor/${profesor._id}`
+      `https://therapai-tfm.onrender.com/api/sesiones/profesor/${profesor._id}`
     )
 
     const data = await response.json()

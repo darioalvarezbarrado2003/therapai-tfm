@@ -136,7 +136,7 @@ async function enviarMensaje() {
     })
 
     // 3. Disparamos la petición HTTP al backend
-    const response = await fetch('http://localhost:8000/api/simulacion', {
+    const response = await fetch('https://therapai-tfm.onrender.com/api/simulacion', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -185,7 +185,7 @@ async function iniciarConversacion() {
       content: MENSAJE_OCULTO_INICIAL
     }]
 
-    const response = await fetch('http://localhost:8000/api/simulacion', {
+    const response = await fetch('https://therapai-tfm.onrender.com/api/simulacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -244,7 +244,7 @@ async function confirmarFinalizarSesion() {
   }))
 
   try {
-    const response = await fetch('http://localhost:8000/api/evaluacion', {
+    const response = await fetch('https://therapai-tfm.onrender.com/api/evaluacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
