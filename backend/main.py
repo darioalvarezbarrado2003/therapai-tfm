@@ -661,23 +661,24 @@ async def login(datos: dict):
     try:
         email = datos.get("email")
         password = datos.get("password")
-
+        
         user = await db.Usuarios.find_one({"email": email})
-
+        
         if not user or user.get("password") != password:
-            return {"error": "Credenciales incorrectas"} # Evitamos el error 401 por ahora
-
-        # Limpiamos el ID
-        user["_id"] = str(user["_id"])
-        user.pop("password", None)
-
-        return user
-    except Exception as e:
-        # LA TRAMPA: Devolvemos el error crítico camuflado de éxito para evitar el bloqueo del navegador
-        return {
-            "fallo_interno": str(e), 
-            "traza": traceback.format_exc()
+            return {"error": "Credenciales incorrectas"}
+        
+        # Eliminamos el ObjectId y la contraseña manualmente
+        user_data = {
+            "email": user.get("email"),
+            "nombre": user.get("nombre"),
+            "id": str(user.get("_id"))
         }
+        
+        return user_data
+
+    except Exception as e:
+        # Esto es lo que nos dará la respuesta real en la consola
+        return {"error_interno": str(e)}
 
 class UsuarioUpdate(BaseModel):
     nombre: str
