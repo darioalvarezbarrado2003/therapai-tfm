@@ -12,40 +12,48 @@ const errorMsg = ref('') // Variable para controlar el mensaje de error visual
 
 async function iniciarSesion() {
   try {
-    errorMsg.value = ''
-    
-    // Hacemos un POST enviando el email y la contraseña en el body
+    // 1. Limpiamos errores previos
+    errorMsg.value = '';
+
+    // 2. Hacemos la llamada al backend
     const response = await fetch(`https://therapai-tfm.onrender.com/api/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value
-      })
-    })
-    
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Error en las credenciales')
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value, password: password.value })
+    });
+
+    // 3. Extraemos el JSON de la respuesta UNA sola vez
+    const data = await response.json();
+    console.log("Respuesta del servidor:", data); 
+
+    // 4. Comprobamos si nuestro "chivato" capturó un error interno de Python
+    if (data.error_interno) {
+        throw new Error("Error en el backend: " + data.error_interno);
     }
     
-    const usuarioMongo = await response.json()
+    // 5. Comprobamos si el HTTP falló (ej. credenciales incorrectas)
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || 'Error en las credenciales');
+    }
     
-    // Guardamos el usuario de MongoDB en el estado global
-    authActions.login(usuarioMongo)
+    // 6. Si llegamos aquí, el login fue un éxito. Guardamos el usuario.
+    authActions.login(data);
     
-    // Redirección inteligente basada en la respuesta del backend
-    if (usuarioMongo.rol === 'alumno') {
-      router.push('/simulacion')
-    } else if (usuarioMongo.rol === 'profesor') {
-      router.push('/historial-alumnos')
+    // 7. Redirección inteligente basada en el rol de la base de datos
+    if (data.rol === 'alumno') {
+      router.push('/simulacion');
+    } else if (data.rol === 'profesor') {
+      router.push('/historial-alumnos');
+    } else {
+      console.warn("Rol no reconocido o ausente:", data.rol);
+      // Opcional: Redirección por defecto si no tiene rol
+      // router.push('/dashboard');
     }
     
   } catch (error) {
-    errorMsg.value = error.message
-    console.error("Error en el login:", error)
+    // 8. Capturamos cualquier error (de red, credenciales o interno) y lo mostramos en pantalla
+    errorMsg.value = error.message;
+    console.error("Fallo crítico en el login:", error);
   }
 }
 
