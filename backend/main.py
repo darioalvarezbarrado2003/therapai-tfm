@@ -12,6 +12,7 @@ import json
 from pydantic import BaseModel
 import traceback
 
+
 app = FastAPI()
 
 # UN SOLO middleware de CORS que permita la conexión desde Vercel
@@ -655,38 +656,24 @@ class LoginRequest(BaseModel):
 
 
 @app.post("/api/login")
-async def login(datos: dict): # Volvemos al dict por si el frontend manda la info rara
-    try:
-        # 1. Intentamos leer los datos
-        email = datos.get("email")
-        password = datos.get("password")
-        
-        if not email or not password:
-            raise ValueError("Falta el email o la contraseña en la petición")
+async def login(datos: dict):
+    email = datos.get("email")
+    password = datos.get("password")
 
-        # 2. Intentamos conectar a la base de datos
-        user = await db.Usuarios.find_one({"email": email})
+    # 1. Buscamos en Mongo (esto ya te funciona perfecto)
+    user = await db.Usuarios.find_one({"email": email})
 
-        # 3. Verificamos credenciales
-        if not user or user.get("password") != password:
-            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    # 2. Verificamos contraseñas
+    if not user or user.get("password") != password:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-        # 4. Limpiamos el ID conflictivo de Mongo
-        user["_id"] = str(user["_id"])
-        
-        return user
+    # 3. LA MAGIA: Convertimos el ObjectId problemático a texto (String)
+    user["_id"] = str(user["_id"])
 
-    except HTTPException as http_e:
-        # Si es un error 401 de contraseña incorrecta, lo dejamos pasar
-        raise http_e
-    except Exception as e:
-        # ¡LA TRAMPA! Si CUALQUIER OTRA COSA falla, extraemos el error exacto
-        error_exacto = str(e)
-        detalle_tecnico = traceback.format_exc()
-        print(f"💥 ERROR EN LOGIN: {detalle_tecnico}") # Esto forzará que salga en el Log de Render
-        
-        # Y además te lo enviamos a Vercel para que lo leas en Chrome
-        raise HTTPException(status_code=500, detail=f"¡Te cacé! El error real es: {error_exacto}")
+    # 4. Por seguridad, borramos la contraseña del diccionario antes de enviarlo a Vue
+    user.pop("password", None)
+
+    return user
 
 class UsuarioUpdate(BaseModel):
     nombre: str
