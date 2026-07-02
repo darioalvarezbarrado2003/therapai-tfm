@@ -10,12 +10,12 @@ from datetime import datetime
 from openai import AsyncOpenAI
 import json
 
-
 app = FastAPI()
 
+# UN SOLO middleware de CORS que permita la conexión desde Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Probemos con asterisco para descartar cualquier fallo de URL exacta
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,19 +25,12 @@ app.add_middleware(
 async def preflight_handler(rest_of_path: str):
     return {"message": "CORS preflight"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Leer las contraseñas de las variables de entorno (¡CRÍTICO!)
 client_openai = AsyncOpenAI(
-    api_key="OPENAI_API_KEY"
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
-MONGO_URI = "MONGO_URI"
+MONGO_URI = os.getenv("MONGO_URI")
 
 client = AsyncIOMotorClient(MONGO_URI)
 db = client.tfm_psicologia
@@ -851,9 +844,8 @@ async def eliminar_alumno(id_alumno: str):
 # Inicializamos el cliente de Anthropic. 
 # OJO: Sustituye esto por tu API Key real que copiaste en el Paso 1
 client_anthropic = AsyncAnthropic(
-    api_key="ANTHROPIC_API_KEY"
+    api_key=os.getenv("ANTHROPIC_API_KEY")
 )
-
 # 1. Creamos el "molde" para entender lo que envía el Vue
 class MensajeChat(BaseModel):
     role: str      # Será "user" (alumno) o "assistant" (paciente)
