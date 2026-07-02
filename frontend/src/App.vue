@@ -67,7 +67,7 @@ async function guardarPerfil() {
       }
     }
 
-    const response = await fetch(`http://127.0.0.1:8000/api/usuarios/${authState.usuario._id}`, {
+    const response = await fetch(`https://therapai-tfm.onrender.com/api/usuarios/${authState.usuario._id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'

@@ -36,7 +36,7 @@ async function cargarAlumnos() {
       throw new Error("No se ha encontrado el ID del profesor.")
     }
 
-    const response = await fetch(`http://127.0.0.1:8000/api/profesores/${idProfesor}/alumnos`)
+    const response = await fetch(`https://therapai-tfm.onrender.com/api/profesores/${idProfesor}/alumnos`)
 
     if (!response.ok) {
       const errorData = await response.json()
@@ -69,7 +69,7 @@ async function registrarAlumno() {
       throw new Error("No se ha encontrado el ID del profesor.")
     }
 
-    const response = await fetch("http://127.0.0.1:8000/api/alumnos", {
+    const response = await fetch("https://therapai-tfm.onrender.com/api/alumnos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -110,7 +110,7 @@ async function eliminarAlumno(idAlumno) {
     errorMsg.value = ""
     successMsg.value = ""
 
-    const response = await fetch(`http://127.0.0.1:8000/api/alumnos/${idAlumno}`, {
+    const response = await fetch(`https://therapai-tfm.onrender.com/api/alumnos/${idAlumno}`, {
       method: "DELETE"
     })
 
@@ -171,7 +171,7 @@ async function guardarCambiosAlumno() {
       }
     }
 
-    const response = await fetch(`http://127.0.0.1:8000/api/alumnos/${alumnoEditando.value._id}`, {
+    const response = await fetch(`https://therapai-tfm.onrender.com/api/alumnos/${alumnoEditando.value._id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json"
