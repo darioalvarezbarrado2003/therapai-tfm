@@ -9,6 +9,7 @@ from anthropic import AsyncAnthropic
 from datetime import datetime
 from openai import AsyncOpenAI
 import json
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -647,18 +648,27 @@ class AlumnoUpdate(BaseModel):
     password: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+# 2. La función de login corregida
 @app.post("/api/login")
-async def login(datos: dict):
-    email = datos.get("email")
-    password = datos.get("password")
+async def login(datos: LoginRequest):
+    # Buscamos al usuario en Mongo
+    user = await db.Usuarios.find_one({"email": datos.email})
 
-    user = await db.Usuarios.find_one({"email": email})
-
-    if not user or user.get("password") != password:
+    # Si no existe o la contraseña no cuadra, lanzamos error 401
+    if not user or user.get("password") != datos.password:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-    user_limpio = serializar_doc(user)
-    return user_limpio
+    # EL ARREGLO DEL ERROR 500: Convertimos el ObjectId de Mongo a String
+    user["_id"] = str(user["_id"])
+
+    # Por seguridad profesional, borramos la contraseña antes de enviar los datos a Vue
+    user.pop("password", None)
+
+    return user
 
 class UsuarioUpdate(BaseModel):
     nombre: str
