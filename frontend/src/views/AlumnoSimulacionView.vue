@@ -63,7 +63,7 @@ function iniciarSimulacion(paciente) {
       <header class="welcome-section">
         <div class="welcome-text">
           <h1 class="welcome-title">
-            Bienvenido, {{ usuario.nombreCorto }}
+            Hola, {{ usuario.nombreCorto }}
           </h1>
 
           <p class="subtitle">

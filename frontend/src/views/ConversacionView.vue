@@ -11,54 +11,48 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const MENSAJE_OCULTO_INICIAL = '[El terapeuta acaba de entrar a la consulta y se sienta en silencio. Inicia tú la conversación como paciente con una frase natural para romper el hielo, actuando estrictamente según tu trastorno y tu estado de ánimo.]'
+
+const MENSAJE_OCULTO_INICIAL =
+  '[El terapeuta acaba de entrar a la consulta y se sienta en silencio. Inicia tú la conversación como paciente con una frase natural para romper el hielo, actuando estrictamente según tu trastorno y tu estado de ánimo.]'
+
+const MAX_MENSAJES_ALUMNO = 20
+const UMBRAL_AVISO_MENSAJES = 5
+const DURACION_AVISO_MENSAJES = 6000
 
 const trastornoSeleccionado = computed(() => route.params.trastorno)
+
 const mostrarModal = ref(false)
 const guardandoSesion = ref(false)
 
+const mensajes = ref([])
+const nuevoMensaje = ref('')
+const escribiendo = ref(false)
+const chatContainer = ref(null)
+
+const mostrarAvisoMensajes = ref(false)
+
+const segundos = ref(0)
+
+let intervalo = null
+let timeoutAvisoMensajes = null
 
 const configuraciones = {
   depresion: {
     nombre: 'Depresión mayor',
-    etiqueta: 'Depresión',
     descripcion:
-      'Perfil simulado caracterizado por baja energía, anhedonia, sentimientos de culpa y reticencia inicial.',
-    objetivos: [
-      'Practicar escucha activa.',
-      'Fomentar la validación emocional.',
-      'Evitar presionar al paciente con soluciones rápidas.'
-    ],
-    mensajeInicial:
-      'Hola... no sé muy bien por qué estoy aquí. Últimamente no tengo ganas de hacer nada. Me cuesta incluso levantarme de la cama por las mañanas.'
+      'Perfil simulado caracterizado por baja energía, anhedonia, sentimientos de culpa y reticencia inicial.'
   },
 
   ansiedad: {
     nombre: 'Trastorno de ansiedad',
-    etiqueta: 'Ansiedad',
     descripcion:
-      'Perfil simulado caracterizado por preocupación persistente, tensión y anticipación negativa.',
-    objetivos: [
-      'Transmitir calma y seguridad.',
-      'Explorar las preocupaciones del paciente.',
-      'Evitar reforzar pensamientos catastróficos.'
-    ],
-    mensajeInicial:
-      'No consigo dejar de preocuparme. Siento que en cualquier momento puede pasar algo malo, aunque realmente no sé explicar qué.'
+      'Perfil simulado caracterizado por preocupación persistente, tensión y anticipación negativa.'
   },
 
   disruptivo: {
     nombre: 'Trastorno disruptivo',
-    etiqueta: 'Disruptivos',
     descripcion:
-      'Perfil desafiante, irritable y poco colaborador, con resistencia ante las preguntas del estudiante.',
-    objetivos: [
-      'Mantener una comunicación asertiva.',
-      'Establecer límites adecuados.',
-      'No reaccionar emocionalmente ante provocaciones.'
-    ],
-    mensajeInicial:
-      'No sé para qué me han obligado a venir aquí. No tengo ningún problema y no pienso contarle mi vida a nadie.'
+      'Perfil desafiante, irritable y poco colaborador, con resistencia ante las preguntas del estudiante.'
   }
 }
 
@@ -66,13 +60,22 @@ const casoActual = computed(() => {
   return configuraciones[trastornoSeleccionado.value]
 })
 
-const mensajes = ref([])
-const nuevoMensaje = ref('')
-const escribiendo = ref(false)
-const chatContainer = ref(null)
+const numeroMensajesAlumno = computed(() => {
+  return mensajes.value.filter(
+    mensaje => mensaje.autor === 'alumno'
+  ).length
+})
 
-const segundos = ref(0)
-let intervalo = null
+const mensajesRestantes = computed(() => {
+  return Math.max(
+    MAX_MENSAJES_ALUMNO - numeroMensajesAlumno.value,
+    0
+  )
+})
+
+const limiteMensajesAlcanzado = computed(() => {
+  return mensajesRestantes.value === 0
+})
 
 const tiempoFormateado = computed(() => {
   const minutos = Math.floor(segundos.value / 60)
@@ -94,58 +97,88 @@ async function desplazarAlFinal() {
   await nextTick()
 
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    chatContainer.value.scrollTop =
+      chatContainer.value.scrollHeight
   }
+}
+
+function mostrarAvisoCincoMensajes() {
+  mostrarAvisoMensajes.value = true
+
+  clearTimeout(timeoutAvisoMensajes)
+
+  timeoutAvisoMensajes = setTimeout(() => {
+    mostrarAvisoMensajes.value = false
+  }, DURACION_AVISO_MENSAJES)
 }
 
 async function enviarMensaje() {
   const texto = nuevoMensaje.value.trim()
 
-  if (!texto || escribiendo.value) {
+  if (
+    !texto ||
+    escribiendo.value ||
+    limiteMensajesAlcanzado.value
+  ) {
     return
   }
 
-  // 1. Guardamos el mensaje del alumno en la interfaz
+
   mensajes.value.push({
     autor: 'alumno',
     contenido: texto,
     hora: obtenerHora()
   })
 
+  // Después de enviar el mensaje 15 quedan 5 mensajes.
+  if (
+    mensajesRestantes.value === UMBRAL_AVISO_MENSAJES
+  ) {
+    mostrarAvisoCincoMensajes()
+  }
+
   nuevoMensaje.value = ''
   escribiendo.value = true
+
   await desplazarAlFinal()
 
+  
   try {
-    // 2. Preparar historial para Anthropic
     const historialParaAPI = []
-    
-    // TRUCO VITAL: Anthropic OBLIGA a que el primer mensaje sea del 'user'.
-    // Añadimos un mensaje inicial invisible para cumplir la regla.
+
+    /*
+     * Anthropic necesita que el primer mensaje del historial
+     * sea del usuario.
+     */
     historialParaAPI.push({
       role: 'user',
-      content: 'Hola, toma asiento por favor. Soy el terapeuta y vamos a comenzar la sesión.'
+      content:
+        'Hola, toma asiento por favor. Soy el terapeuta y vamos a comenzar la sesión.'
     })
 
-    // Ahora añadimos el resto del historial real de la pantalla
-    mensajes.value.forEach(msg => {
+    mensajes.value.forEach(mensaje => {
       historialParaAPI.push({
-        role: msg.autor === 'alumno' ? 'user' : 'assistant',
-        content: msg.contenido
+        role:
+          mensaje.autor === 'alumno'
+            ? 'user'
+            : 'assistant',
+        content: mensaje.contenido
       })
     })
 
-    // 3. Disparamos la petición HTTP al backend
-    const response = await fetch('https://therapai-tfm.onrender.com/api/simulacion', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        trastorno: trastornoSeleccionado.value, 
-        historial: historialParaAPI 
-      })
-    })
+    const response = await fetch(
+      'https://therapai-tfm.onrender.com/api/simulacion',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          trastorno: trastornoSeleccionado.value,
+          historial: historialParaAPI
+        })
+      }
+    )
 
     if (!response.ok) {
       throw new Error('Error al comunicar con el backend')
@@ -153,118 +186,152 @@ async function enviarMensaje() {
 
     const data = await response.json()
 
-    // 4. Mostramos la respuesta real de la Inteligencia Artificial
-    mensajes.value.push({
+  mensajes.value.push({
       autor: 'paciente',
       contenido: data.respuesta,
       hora: obtenerHora()
-    })
-
+  })
   } catch (error) {
-    console.error("Error en la simulación:", error)
-    // Este es el mensaje que salta si algo falla (¡No es un placeholder!)
+    console.error('Error en la simulación:', error)
+
     mensajes.value.push({
       autor: 'paciente',
-      contenido: "[Error de conexión: No he podido formular una respuesta. Comprueba que el backend está encendido y prueba de nuevo.]",
+      contenido:
+        '[Error de conexión: No he podido formular una respuesta. Comprueba que el backend está encendido y prueba de nuevo.]',
       hora: obtenerHora()
     })
   } finally {
-    // 5. Apagamos el estado de "escribiendo"
     escribiendo.value = false
     await desplazarAlFinal()
   }
 }
 
 async function iniciarConversacion() {
-  escribiendo.value = true // Muestra el "escribiendo..." al entrar
+  escribiendo.value = true
 
   try {
-    // El "empujón" invisible para que Claude hable primero cumpliendo sus reglas
-    const historialParaAPI = [{
-      role: 'user',
-      content: MENSAJE_OCULTO_INICIAL
-    }]
+    const historialParaAPI = [
+      {
+        role: 'user',
+        content: MENSAJE_OCULTO_INICIAL
+      }
+    ]
 
-    const response = await fetch('https://therapai-tfm.onrender.com/api/simulacion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trastorno: trastornoSeleccionado.value,
-        historial: historialParaAPI
-      })
-    })
+    const response = await fetch(
+      'https://therapai-tfm.onrender.com/api/simulacion',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          trastorno: trastornoSeleccionado.value,
+          historial: historialParaAPI
+        })
+      }
+    )
 
-    if (!response.ok) throw new Error('Error al conectar con la IA')
+    if (!response.ok) {
+      throw new Error('Error al conectar con la IA')
+    }
 
     const data = await response.json()
 
-    // Mostramos la primera frase 100% original generada por Claude
     mensajes.value.push({
       autor: 'paciente',
       contenido: data.respuesta,
       hora: obtenerHora()
     })
 
+    await desplazarAlFinal()
   } catch (error) {
-    console.error("Error al iniciar:", error)
+    console.error('Error al iniciar:', error)
+
     mensajes.value.push({
       autor: 'paciente',
-      contenido: "⚠️ [El paciente virtual no ha podido entrar a la sala. Revisa el backend.]",
+      contenido:
+        '⚠️ [El paciente virtual no ha podido entrar a la sala. Revisa el backend.]',
       hora: obtenerHora()
     })
   } finally {
     escribiendo.value = false
+    await desplazarAlFinal()
   }
 }
 
-// Función para abrir el modal al pulsar el botón rojo
 function abrirModalFinalizar() {
   mostrarModal.value = true
 }
 
-// Función para cerrar el modal si se arrepiente
 function cerrarModal() {
   if (!guardandoSesion.value) {
     mostrarModal.value = false
   }
 }
 
-// La función real que llama al backend
 async function confirmarFinalizarSesion() {
-  guardandoSesion.value = true // Muestra el spinner y bloquea clics
-  clearInterval(intervalo)
-  
-  // OJO: Comprueba que 'usuario' es la clave correcta de tu login
-  const usuarioRaw = localStorage.getItem('usuario')
-  const usuarioInfo = usuarioRaw ? JSON.parse(usuarioRaw) : { _id: 'id_demo_alumno', idp: 'id_demo_profesor' }
+  guardandoSesion.value = true
 
-  const historialParaEvaluar = mensajes.value.map(msg => ({
-    role: msg.autor === 'alumno' ? 'user' : 'assistant',
-    content: msg.contenido
-  }))
+  clearInterval(intervalo)
+
+  const usuarioRaw = localStorage.getItem('usuario')
+
+  const usuarioInfo = usuarioRaw
+    ? JSON.parse(usuarioRaw)
+    : {
+        _id: 'id_demo_alumno',
+        idp: 'id_demo_profesor'
+      }
+
+  const historialParaEvaluar = mensajes.value.map(
+    mensaje => ({
+      role:
+        mensaje.autor === 'alumno'
+          ? 'user'
+          : 'assistant',
+      content: mensaje.contenido
+    })
+  )
 
   try {
-    const response = await fetch('https://therapai-tfm.onrender.com/api/evaluacion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id_alumno: usuarioInfo._id, // Si esto falla, revisa si tu JSON usa ._id o .id
-        id_profesor: usuarioInfo.idp || 'profesor_demo',
-        trastorno: trastornoSeleccionado.value,
-        historial: historialParaEvaluar
-      })
-    })
+    const response = await fetch(
+      'https://therapai-tfm.onrender.com/api/evaluacion',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id_alumno: usuarioInfo._id,
+          id_profesor:
+            usuarioInfo.idp || 'profesor_demo',
+          trastorno: trastornoSeleccionado.value,
+          historial: historialParaEvaluar
+        })
+      }
+    )
 
-    if (!response.ok) throw new Error('Error al guardar la sesión')
+    if (!response.ok) {
+      throw new Error('Error al guardar la sesión')
+    }
 
-    // Éxito -> Redirigimos
     router.push('/mi-historial')
-
   } catch (error) {
-    console.error("Error al finalizar la sesión:", error)
-    alert("Hubo un problema al evaluar la transcripción.")
+    console.error(
+      'Error al finalizar la sesión:',
+      error
+    )
+
+    alert(
+      'Hubo un problema al evaluar la transcripción.'
+    )
+
     guardandoSesion.value = false
     mostrarModal.value = false
+
+    intervalo = setInterval(() => {
+      segundos.value++
+    }, 1000)
   }
 }
 
@@ -274,35 +341,49 @@ onMounted(() => {
     return
   }
 
-  // Arrancamos el cronómetro de la sesión
   intervalo = setInterval(() => {
     segundos.value++
   }, 1000)
 
-  // Disparamos la IA para que genere el primer mensaje
   iniciarConversacion()
 })
 
 onUnmounted(() => {
   clearInterval(intervalo)
+  clearTimeout(timeoutAvisoMensajes)
 })
 </script>
 
 <template>
-  <main v-if="casoActual" class="pagina-conversacion">
+  <main
+    v-if="casoActual"
+    class="pagina-conversacion"
+  >
     <section class="zona-chat">
       <header class="cabecera-chat">
         <div class="avatar-paciente">
           <span>♙</span>
         </div>
 
-        <div>
-          <h1>Paciente virtual</h1>
-          <p>{{ casoActual.etiqueta }}</p>
+        <div class="informacion-cabecera">
+          <div class="titulo-caso">
+            <span>Caso clínico:</span>
+
+            <h1>
+              {{ casoActual.nombre }}
+            </h1>
+          </div>
+
+          <p class="descripcion-caso">
+            {{ casoActual.descripcion }}
+          </p>
         </div>
       </header>
 
-      <section ref="chatContainer" class="mensajes">
+      <section
+        ref="chatContainer"
+        class="mensajes"
+      >
         <article
           v-for="(mensaje, index) in mensajes"
           :key="index"
@@ -310,7 +391,11 @@ onUnmounted(() => {
           :class="mensaje.autor"
         >
           <div class="avatar-mensaje">
-            {{ mensaje.autor === 'alumno' ? 'CF' : 'P' }}
+            {{
+              mensaje.autor === 'alumno'
+                ? 'CF'
+                : 'P'
+            }}
           </div>
 
           <div class="contenido-mensaje">
@@ -324,59 +409,135 @@ onUnmounted(() => {
           </div>
         </article>
 
-        <p v-if="escribiendo" class="escribiendo">
+        <p
+          v-if="escribiendo"
+          class="escribiendo"
+        >
           El paciente está escribiendo...
         </p>
       </section>
 
-      <form class="zona-escritura" @submit.prevent="enviarMensaje">
-        <textarea
-          v-model="nuevoMensaje"
-          placeholder="Escribe tu intervención terapéutica aquí..."
-          rows="1"
-          :disabled="escribiendo"
-          @keydown.enter.exact.prevent="enviarMensaje"
-        />
+      <div class="contenedor-escritura">
+        <Transition name="aviso">
+          <div
+            v-if="mostrarAvisoMensajes"
+            class="aviso-mensajes"
+            role="alert"
+          >
+            Te quedan 5 mensajes. Empieza a
+            preparar el cierre de la sesión.
+          </div>
+        </Transition>
 
-        <button
-          type="submit"
-          :disabled="!nuevoMensaje.trim() || escribiendo"
-          aria-label="Enviar mensaje"
+        <div
+          v-if="limiteMensajesAlcanzado"
+          class="aviso-limite"
+          role="alert"
         >
-          ➤
-        </button>
-      </form>
+          Has alcanzado el máximo de 20 mensajes.
+          Finaliza la sesión para generar la
+          evaluación.
+        </div>
+
+        <form
+          class="zona-escritura"
+          @submit.prevent="enviarMensaje"
+        >
+          <textarea
+            v-model="nuevoMensaje"
+            :placeholder="
+              limiteMensajesAlcanzado
+                ? 'Límite de mensajes alcanzado'
+                : 'Escribe tu intervención terapéutica aquí...'
+            "
+            rows="1"
+            :disabled="
+              escribiendo ||
+              limiteMensajesAlcanzado
+            "
+            @keydown.enter.exact.prevent="
+              enviarMensaje
+            "
+          />
+
+          <button
+            type="submit"
+            :disabled="
+              !nuevoMensaje.trim() ||
+              escribiendo ||
+              limiteMensajesAlcanzado
+            "
+            aria-label="Enviar mensaje"
+          >
+            ➤
+          </button>
+        </form>
+      </div>
     </section>
 
     <aside class="panel-lateral">
-      <section class="panel-informacion">
-        <h2>Caso clínico</h2>
-
-        <span class="etiqueta-caso">
-          {{ casoActual.nombre }}
-        </span>
+      <section
+        class="panel-informacion panel-etica"
+      >
+        <h2>Aviso de uso</h2>
 
         <p>
-          {{ casoActual.descripcion }}
+          Esta simulación utiliza un paciente
+          virtual generado mediante inteligencia
+          artificial.
+        </p>
+
+        <p>
+          No representa a una persona real y no
+          debe utilizarse para realizar
+          diagnósticos, tratamientos ni decisiones
+          clínicas reales.
+        </p>
+
+        <p>
+          Es una herramienta destinada
+          exclusivamente a la formación y práctica
+          con fines pedagógicos.
         </p>
       </section>
 
-      <section class="panel-informacion">
-        <h2>Objetivos pedagógicos</h2>
+      <section
+        class="panel-informacion panel-mensajes-restantes"
+        :class="{
+          agotado: limiteMensajesAlcanzado,
+          pocos:
+            mensajesRestantes <= 5 &&
+            !limiteMensajesAlcanzado
+        }"
+      >
+        <h2>Mensajes disponibles</h2>
 
-        <ul>
-          <li
-            v-for="objetivo in casoActual.objetivos"
-            :key="objetivo"
-          >
-            {{ objetivo }}
-          </li>
-        </ul>
+        <div class="contador-mensajes">
+          <strong>
+            {{ mensajesRestantes }}
+          </strong>
+
+          <span>
+            de {{ MAX_MENSAJES_ALUMNO }}
+            restantes
+          </span>
+        </div>
+
+        <p v-if="limiteMensajesAlcanzado">
+          Debes finalizar la sesión para continuar.
+        </p>
+
+        <p v-else-if="mensajesRestantes <= 5">
+          Ve preparando el cierre de la sesión.
+        </p>
       </section>
 
       <div class="temporizador">
         <span class="reloj">◷</span>
-        <strong>{{ tiempoFormateado }}</strong>
+
+        <strong>
+          {{ tiempoFormateado }}
+        </strong>
       </div>
 
       <button
@@ -386,33 +547,72 @@ onUnmounted(() => {
       >
         Finalizar sesión
       </button>
-
-
-
     </aside>
 
-
-  <div v-if="mostrarModal" class="modal-overlay">
+    <div
+      v-if="mostrarModal"
+      class="modal-overlay"
+    >
       <div class="modal-content">
-        <button v-if="!guardandoSesion" class="close-btn" @click="cerrarModal">✖</button>
-        
-        <h2 v-if="!guardandoSesion">Finalizar sesión</h2>
-        <h2 v-else>Evaluando sesión...</h2>
+        <button
+          v-if="!guardandoSesion"
+          class="close-btn"
+          type="button"
+          @click="cerrarModal"
+        >
+          ✖
+        </button>
 
-        <p v-if="!guardandoSesion">¿Seguro que quieres terminar la consulta y enviar la transcripción al juez evaluador?</p>
-        <p v-else>La inteligencia artificial está analizando tus competencias. Por favor, no cierres esta ventana (puede tardar unos 15 segundos).</p>
+        <h2 v-if="!guardandoSesion">
+          Finalizar sesión
+        </h2>
 
-        <div class="modal-buttons" v-if="!guardandoSesion">
-          <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
-          <button class="btn-aceptar" @click="confirmarFinalizarSesion">Aceptar</button>
+        <h2 v-else>
+          Evaluando sesión...
+        </h2>
+
+        <p v-if="!guardandoSesion">
+          ¿Seguro que quieres terminar la consulta
+          y enviar la transcripción al juez
+          evaluador?
+        </p>
+
+        <p v-else>
+          La inteligencia artificial está
+          analizando tus competencias. Por favor,
+          no cierres esta ventana. El proceso puede
+          tardar unos 15 segundos.
+        </p>
+
+        <div
+          v-if="!guardandoSesion"
+          class="modal-buttons"
+        >
+          <button
+            type="button"
+            class="btn-cancelar"
+            @click="cerrarModal"
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="button"
+            class="btn-aceptar"
+            @click="confirmarFinalizarSesion"
+          >
+            Aceptar
+          </button>
         </div>
-        
-        <div class="loader-container" v-else>
+
+        <div
+          v-else
+          class="loader-container"
+        >
           <div class="spinner"></div>
         </div>
       </div>
     </div>
-
   </main>
 </template>
 
