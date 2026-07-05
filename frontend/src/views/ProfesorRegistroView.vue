@@ -16,6 +16,10 @@ const cargando = ref(false)
 
 const alumnoEditando = ref(null)
 
+const alumnoAEliminar = ref(null)
+const eliminandoAlumno = ref(false)
+const deleteErrorMsg = ref("")
+
 const editarForm = ref({
   nombre: "",
   email: "",
@@ -118,10 +122,32 @@ async function registrarAlumno() {
   }
 }
 
-async function eliminarAlumno(idAlumno) {
+function abrirModalEliminar(alumno) {
+  alumnoAEliminar.value = alumno
+  deleteErrorMsg.value = ""
+}
+
+function cerrarModalEliminar() {
+  if (eliminandoAlumno.value) {
+    return
+  }
+
+  alumnoAEliminar.value = null
+  deleteErrorMsg.value = ""
+}
+
+async function confirmarEliminarAlumno() {
+  if (!alumnoAEliminar.value?._id) {
+    return
+  }
+
   try {
+    eliminandoAlumno.value = true
+    deleteErrorMsg.value = ""
     errorMsg.value = ""
     successMsg.value = ""
+
+    const idAlumno = alumnoAEliminar.value._id
 
     const response = await fetch(
       `https://therapai-tfm.onrender.com/api/alumnos/${idAlumno}`,
@@ -134,7 +160,8 @@ async function eliminarAlumno(idAlumno) {
       const errorData = await response.json()
 
       throw new Error(
-        errorData.detail || "No se ha podido eliminar el alumno."
+        errorData.detail ||
+          "No se ha podido eliminar el alumno."
       )
     }
 
@@ -142,10 +169,13 @@ async function eliminarAlumno(idAlumno) {
       alumno => alumno._id !== idAlumno
     )
 
+    alumnoAEliminar.value = null
     successMsg.value = "Alumno eliminado correctamente."
   } catch (error) {
-    errorMsg.value = error.message
+    deleteErrorMsg.value = error.message
     console.error("Error eliminando alumno:", error)
+  } finally {
+    eliminandoAlumno.value = false
   }
 }
 
@@ -264,7 +294,6 @@ const alumnosOrdenados = computed(() => {
   )
 })
 
-
 onMounted(() => {
   cargarAlumnos()
 })
@@ -353,7 +382,7 @@ onMounted(() => {
                 type="button"
                 class="icon-btn delete"
                 title="Eliminar alumno"
-                @click="eliminarAlumno(alumno._id)"
+                @click="abrirModalEliminar(alumno)"
               >
                 🗑
               </button>
@@ -492,6 +521,72 @@ onMounted(() => {
         </form>
       </section>
     </div>
+
+    <div
+      v-if="alumnoAEliminar"
+      class="modal-backdrop delete-modal-backdrop"
+    >
+      <section
+        class="delete-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-modal-title"
+      >
+        <button
+          v-if="!eliminandoAlumno"
+          class="close-delete-modal"
+          type="button"
+          aria-label="Cerrar"
+          @click="cerrarModalEliminar"
+        >
+          ×
+        </button>
+
+        <h2 id="delete-modal-title">
+          Eliminar alumno
+        </h2>
+
+        <p class="delete-modal-text">
+          ¿Seguro que quieres eliminar a
+          <strong>{{ alumnoAEliminar.nombre }}</strong>?
+        </p>
+
+        <p class="delete-modal-warning">
+          Esta acción no se puede deshacer.
+        </p>
+
+        <p
+          v-if="deleteErrorMsg"
+          class="error-message delete-error"
+        >
+          {{ deleteErrorMsg }}
+        </p>
+
+        <div class="delete-modal-actions">
+          <button
+            type="button"
+            class="delete-cancel-btn"
+            :disabled="eliminandoAlumno"
+            @click="cerrarModalEliminar"
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="button"
+            class="delete-confirm-btn"
+            :disabled="eliminandoAlumno"
+            @click="confirmarEliminarAlumno"
+          >
+            {{
+              eliminandoAlumno
+                ? "Eliminando..."
+                : "Eliminar"
+            }}
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -561,7 +656,6 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* DISTRIBUCIÓN PRINCIPAL */
 .classroom-layout {
   position: relative;
   z-index: 1;
@@ -576,7 +670,6 @@ onMounted(() => {
   align-items: start;
 }
 
-/* COLUMNA IZQUIERDA */
 .students-zone {
   width: 100%;
   height: 100%;
@@ -618,7 +711,6 @@ onMounted(() => {
   font-weight: 700;
 }
 
-/* ORDENACIÓN */
 .list-toolbar {
   width: 100%;
   flex-shrink: 0;
@@ -665,7 +757,6 @@ onMounted(() => {
   box-shadow: 0 0 0 4px rgba(92, 169, 203, 0.18);
 }
 
-/* LISTA CON SCROLL PROPIO */
 .students-list {
   flex: 1;
   min-height: 0;
@@ -697,7 +788,6 @@ onMounted(() => {
   background: rgba(71, 85, 105, 0.6);
 }
 
-/* FILAS CON EL ESTILO DEL LOGIN */
 .student-row {
   width: 100%;
   min-height: 76px;
@@ -813,7 +903,6 @@ onMounted(() => {
   box-shadow: 0 8px 20px rgba(31, 78, 124, 0.06);
 }
 
-/* ZONA DE REGISTRO */
 .register-zone {
   align-self: start;
   width: 100%;
@@ -822,7 +911,6 @@ onMounted(() => {
   margin-top: 50px;
 }
 
-/* TARJETA Y BOTÓN */
 .student-form {
   width: 100%;
   display: flex;
@@ -830,7 +918,6 @@ onMounted(() => {
   gap: 24px;
 }
 
-/* TARJETA BLANCA */
 .register-card {
   width: 100%;
   padding: 46px 38px 40px;
@@ -844,7 +931,6 @@ onMounted(() => {
   backdrop-filter: blur(12px);
 }
 
-/* TÍTULO IGUAL AL LOGIN */
 .register-card h2 {
   margin: 0 0 38px;
   color: #000000;
@@ -855,7 +941,6 @@ onMounted(() => {
   letter-spacing: -0.5px;
 }
 
-/* CAMPOS */
 .fields-group {
   width: 100%;
   display: flex;
@@ -901,7 +986,6 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-/* MENSAJES */
 .error-message,
 .success-message {
   width: 100%;
@@ -928,7 +1012,6 @@ onMounted(() => {
   color: #15803d;
 }
 
-/* BOTÓN FUERA DE LA TARJETA */
 .primary-btn {
   position: relative;
   width: calc(100% - 28px);
@@ -973,7 +1056,6 @@ onMounted(() => {
   transform: translateY(-54%);
 }
 
-/* MODAL DE EDICIÓN */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1090,7 +1172,130 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-/* TABLET */
+/* MODAL DE ELIMINACIÓN */
+
+.delete-modal-backdrop {
+  z-index: 400;
+}
+
+.delete-modal {
+  position: relative;
+  width: min(500px, calc(100% - 40px));
+  padding: 48px 46px 38px;
+  box-sizing: border-box;
+  border: 1px solid rgba(210, 226, 235, 0.95);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.24);
+  text-align: center;
+}
+
+.close-delete-modal {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.close-delete-modal:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.delete-modal h2 {
+  margin: 0 0 20px;
+  color: #1f2937;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.delete-modal-text {
+  margin: 0;
+  color: #4b5563;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.delete-modal-text strong {
+  color: #1f2937;
+}
+
+.delete-modal-warning {
+  margin: 8px 0 26px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.delete-error {
+  margin: 0 0 20px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.delete-cancel-btn,
+.delete-confirm-btn {
+  min-width: 120px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.delete-cancel-btn {
+  border: 1px solid #cbd5e1;
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.delete-cancel-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.delete-confirm-btn {
+  border: none;
+  color: #ffffff;
+  background: #dc2626;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.2);
+}
+
+.delete-confirm-btn:hover:not(:disabled) {
+  background: #b91c1c;
+  box-shadow: 0 9px 18px rgba(220, 38, 38, 0.28);
+  transform: translateY(-1px);
+}
+
+.delete-cancel-btn:disabled,
+.delete-confirm-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 @media (max-width: 1150px) {
   .classroom-view {
     height: auto;
@@ -1121,7 +1326,6 @@ onMounted(() => {
   }
 }
 
-/* MÓVIL */
 @media (max-width: 650px) {
   .classroom-view {
     height: auto;
@@ -1223,5 +1427,24 @@ onMounted(() => {
   .edit-modal h2 {
     font-size: 34px;
   }
+
+  .delete-modal {
+    width: calc(100% - 36px);
+    padding: 44px 24px 30px;
+  }
+
+  .delete-modal h2 {
+    font-size: 27px;
+  }
+
+  .delete-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .delete-cancel-btn,
+  .delete-confirm-btn {
+    width: 100%;
+  }
 }
 </style>
+
