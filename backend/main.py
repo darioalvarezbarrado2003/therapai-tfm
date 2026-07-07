@@ -673,7 +673,8 @@ async def login(datos: dict):
             "nombre": user.get("nombre"),
             "rol": user.get("rol"),
             "_id": str(user.get("_id")),
-            "id": str(user.get("_id"))
+            "id": str(user.get("_id")),
+            "idp": str(user.get("idp", "")),
         }
         
         return user_data
