@@ -269,11 +269,9 @@ function cerrarModal() {
 
 async function confirmarFinalizarSesion() {
   guardandoSesion.value = true
-
   clearInterval(intervalo)
 
   const usuarioRaw = localStorage.getItem('usuario')
-
   const usuarioInfo = usuarioRaw
     ? JSON.parse(usuarioRaw)
     : {
@@ -281,12 +279,12 @@ async function confirmarFinalizarSesion() {
         idp: 'id_demo_profesor'
       }
 
+  // 1. Ampliamos la red de captura del ID del profesor
+  const idProfesorReal = usuarioInfo.idp || usuarioInfo.id_profesor || usuarioInfo.profesor_id || 'profesor_demo';
+
   const historialParaEvaluar = mensajes.value.map(
     mensaje => ({
-      role:
-        mensaje.autor === 'alumno'
-          ? 'user'
-          : 'assistant',
+      role: mensaje.autor === 'alumno' ? 'user' : 'assistant',
       content: mensaje.contenido
     })
   )
@@ -301,8 +299,7 @@ async function confirmarFinalizarSesion() {
         },
         body: JSON.stringify({
           id_alumno: usuarioInfo._id,
-          id_profesor:
-            usuarioInfo.idp || 'profesor_demo',
+          id_profesor: idProfesorReal, // 2. Inyectamos la variable cazada
           trastorno: trastornoSeleccionado.value,
           historial: historialParaEvaluar
         })
@@ -315,18 +312,12 @@ async function confirmarFinalizarSesion() {
 
     router.push('/mi-historial')
   } catch (error) {
-    console.error(
-      'Error al finalizar la sesión:',
-      error
-    )
-
-    alert(
-      'Hubo un problema al evaluar la transcripción.'
-    )
-
+    console.error('Error al finalizar la sesión:', error)
+    alert('Hubo un problema al evaluar la transcripción.')
+    
     guardandoSesion.value = false
     mostrarModal.value = false
-
+    
     intervalo = setInterval(() => {
       segundos.value++
     }, 1000)
