@@ -31,9 +31,15 @@ async function iniciarSesion() {
         throw new Error("Error en el backend: " + data.error_interno);
     }
     
-    // 5. Comprobamos si el HTTP falló (ej. credenciales incorrectas)
+   
+    // Como Python devuelve {"error": "..."} con estado 200, tenemos que frenarlo aquí mismo:
+    if (data.error) {
+        throw new Error(data.error);
+    }
+    
+    // 5. Comprobamos si el HTTP falló (ej. error 500 o 404 de Render)
     if (!response.ok) {
-      throw new Error(data.detail || data.error || 'Error en las credenciales');
+      throw new Error(data.detail || 'Error en las credenciales');
     }
     
     // 6. Si llegamos aquí, el login fue un éxito. Guardamos el usuario.
@@ -46,8 +52,6 @@ async function iniciarSesion() {
       router.push('/historial-alumnos');
     } else {
       console.warn("Rol no reconocido o ausente:", data.rol);
-      // Opcional: Redirección por defecto si no tiene rol
-      // router.push('/dashboard');
     }
     
   } catch (error) {
@@ -320,13 +324,17 @@ function irARegistro() {
   box-shadow: 0 0 0 4px rgba(159, 213, 243, 0.55);
 }
 
-/* ERROR */
 .error-message {
-  color: #ef4444;
+  margin-top: 15px;
+  padding: 10px 14px;
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  border-radius: 12px;
+  background: rgba(254, 226, 226, 0.65);
+  color: #dc2626;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 14px;
   font-weight: 700;
   text-align: center;
-  margin: -2px 0;
 }
 
 /* BOTÓN CONTINUAR */
