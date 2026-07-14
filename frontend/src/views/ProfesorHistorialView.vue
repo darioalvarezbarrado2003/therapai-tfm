@@ -16,7 +16,7 @@ const registrosFiltrados = computed(() => {
     .toLowerCase()
     .trim()
 
-  // Primero filtramos por alumno, caso o título
+  //filtramos por alumno, caso o título
   let registros = registrosAlumnos.value.filter(registro => {
     if (!texto) return true
 
@@ -36,12 +36,10 @@ const registrosFiltrados = computed(() => {
     )
   })
 
-  // Creamos una copia para no modificar el array original
   registros = [...registros]
 
   switch (ordenSeleccionado.value) {
     case 'antiguo':
-      // El backend los devuelve de más reciente a más antiguo
       return registros.reverse()
 
     case 'az':

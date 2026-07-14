@@ -224,14 +224,13 @@ function iniciarSimulacion(paciente) {
   min-width: 0;
 }
 
-/* AQUÍ ESTÁ LA MAGIA DEL TEXTO SLICK */
 .welcome-title {
   margin: 0 0 8px;
-  color: #1a2b3c; /* Tono oscuro más elegante similar a tu captura */
+  color: #1a2b3c; 
   font-size: clamp(32px, 3.5vw, 44px);
   line-height: 1.1;
-  font-weight: 700; /* Reducido de 900 (Black) a 700 (Bold) */
-  letter-spacing: -0.02em; /* Junta las letras un poco para darle el toque UI moderno */
+  font-weight: 700; 
+  letter-spacing: -0.02em; 
 }
 
 .subtitle {
@@ -240,10 +239,10 @@ function iniciarSimulacion(paciente) {
   color: #64748b;
   font-size: clamp(16px, 1.25vw, 18px);
   line-height: 1.45;
-  font-weight: 500; /* Un poco más de cuerpo al subtítulo para que acompañe bien */
+  font-weight: 500; 
 }
 
-/* INFORMACIÓN SUPERIOR */
+
 .platform-features {
   display: flex;
   flex-shrink: 0;
@@ -276,7 +275,7 @@ function iniciarSimulacion(paciente) {
   white-space: nowrap;
 }
 
-/* TARJETAS */
+
 .cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(260px, 1fr));
@@ -346,7 +345,7 @@ function iniciarSimulacion(paciente) {
   font-weight: 800;
 }
 
-/* CONTENIDO DE LAS TARJETAS */
+
 .card-body {
   flex: 1;
   padding: 20px;
@@ -413,7 +412,7 @@ function iniciarSimulacion(paciente) {
   font-weight: 900;
 }
 
-/* BOTÓN */
+
 .start-button {
   min-height: 42px;
   padding: 0 16px;
@@ -441,7 +440,7 @@ function iniciarSimulacion(paciente) {
   line-height: 1;
 }
 
-/* TABLET */
+
 @media (max-width: 992px) {
   .content {
     width: min(100% - 40px, 850px);
@@ -457,7 +456,7 @@ function iniciarSimulacion(paciente) {
   }
 }
 
-/* MÓVIL */
+
 @media (max-width: 600px) {
   .view {
     align-items: flex-start;

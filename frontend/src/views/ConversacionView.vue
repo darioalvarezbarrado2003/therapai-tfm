@@ -279,7 +279,7 @@ async function confirmarFinalizarSesion() {
         idp: 'id_demo_profesor'
       }
 
-  // 1. Ampliamos la red de captura del ID del profesor
+  
   const idProfesorReal = usuarioInfo.idp || usuarioInfo.id_profesor || usuarioInfo.profesor_id || 'profesor_demo';
 
   const historialParaEvaluar = mensajes.value.map(
@@ -299,7 +299,7 @@ async function confirmarFinalizarSesion() {
         },
         body: JSON.stringify({
           id_alumno: usuarioInfo._id,
-          id_profesor: idProfesorReal, // 2. Inyectamos la variable cazada
+          id_profesor: idProfesorReal, 
           trastorno: trastornoSeleccionado.value,
           historial: historialParaEvaluar
         })

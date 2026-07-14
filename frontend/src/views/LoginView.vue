@@ -1,51 +1,49 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { authActions } from '../authStore' // Importamos el almacén para guardar el usuario
+import { authActions } from '../authStore' 
 
 const router = useRouter()
 
-// Variables conectadas al formulario (sin el selector de rol)
+
 const email = ref('')
 const password = ref('')
-const errorMsg = ref('') // Variable para controlar el mensaje de error visual
+const errorMsg = ref('') 
 
 async function iniciarSesion() {
   try {
-    // 1. Limpiamos errores previos
+    
     errorMsg.value = '';
 
-    // 2. Hacemos la llamada al backend
+    
     const response = await fetch(`https://therapai-tfm.onrender.com/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
     });
 
-    // 3. Extraemos el JSON de la respuesta UNA sola vez
+    
     const data = await response.json();
     console.log("Respuesta del servidor:", data); 
 
-    // 4. Comprobamos si nuestro "chivato" capturó un error interno de Python
+    
     if (data.error_interno) {
         throw new Error("Error en el backend: " + data.error_interno);
     }
     
    
-    // Como Python devuelve {"error": "..."} con estado 200, tenemos que frenarlo aquí mismo:
+   
     if (data.error) {
         throw new Error(data.error);
     }
     
-    // 5. Comprobamos si el HTTP falló (ej. error 500 o 404 de Render)
+    
     if (!response.ok) {
       throw new Error(data.detail || 'Error en las credenciales');
     }
     
-    // 6. Si llegamos aquí, el login fue un éxito. Guardamos el usuario.
     authActions.login(data);
     
-    // 7. Redirección inteligente basada en el rol de la base de datos
     if (data.rol === 'alumno') {
       router.push('/simulacion');
     } else if (data.rol === 'profesor') {
@@ -55,7 +53,6 @@ async function iniciarSesion() {
     }
     
   } catch (error) {
-    // 8. Capturamos cualquier error (de red, credenciales o interno) y lo mostramos en pantalla
     errorMsg.value = error.message;
     console.error("Fallo crítico en el login:", error);
   }
@@ -285,7 +282,7 @@ function irARegistro() {
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #000000; /* Letras en negro */
+  color: #000000; 
   margin: 0 0 32px 4px;
 }
 

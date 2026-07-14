@@ -673,7 +673,7 @@ async def login(datos: dict):
         if not user or user.get("password") != password:
             return {"error": "Credenciales incorrectas"}
         
-        # Eliminamos el ObjectId y la contraseña manualmente
+        
         user_data = {
             "email": user.get("email"),
             "nombre": user.get("nombre"),
@@ -686,7 +686,7 @@ async def login(datos: dict):
         return user_data
 
     except Exception as e:
-        # Esto es lo que nos dará la respuesta real en la consola
+        
         return {"error_interno": str(e)}
 
 class UsuarioUpdate(BaseModel):
@@ -871,14 +871,13 @@ async def eliminar_alumno(id_alumno: str):
 
 
 # Inicializamos el cliente de Anthropic. 
-# OJO: Sustituye esto por tu API Key real que copiaste en el Paso 1
 client_anthropic = AsyncAnthropic(
     api_key=os.getenv("ANTHROPIC_API_KEY")
 )
-# 1. Creamos el "molde" para entender lo que envía el Vue
+
 class MensajeChat(BaseModel):
-    role: str      # Será "user" (alumno) o "assistant" (paciente)
-    content: str   # El texto del mensaje
+    role: str      
+    content: str   
 
 class SimulacionRequest(BaseModel):
     trastorno: str
@@ -893,17 +892,16 @@ async def generar_respuesta_paciente(datos: SimulacionRequest):
     if not prompt_sistema:
         raise HTTPException(status_code=400, detail="Trastorno no válido")
 
-    # 2. Convertimos el historial de Pydantic a una lista de diccionarios que entienda Claude
     mensajes_api = [{"role": msg.role, "content": msg.content} for msg in datos.historial]
 
     try:
-        # 3. Llamada asíncrona a la API de Claude 3.5 Sonnet
+        # 3. Llamada asíncrona a la API de Claude 4.6 Sonnet
         respuesta = await client_anthropic.messages.create(
            model="claude-sonnet-4-6",
             max_tokens=300, # Limitamos la longitud para que no hable en exceso
             temperature=0.7, # Creatividad media para mantener el rol sin volverse loco
             system=prompt_sistema, # Aquí le inyectamos la personalidad (HEXACO)
-            messages=mensajes_api # Aquí le pasamos TODO el historial
+            messages=mensajes_api # Aquí le pasamos todo el historial
         )
         
         # 4. Extraemos el texto de la respuesta y se lo mandamos de vuelta al frontend
@@ -931,7 +929,7 @@ async def procesar_evaluacion(datos: EvaluacionRequest):
     # 1. Rescatamos el perfil exacto del paciente para el juez
     perfil_esperado = PROMPTS_PACIENTES.get(datos.trastorno, "Perfil no encontrado")
 
-    # 2. Convertimos el historial a un guion de teatro (PSICÓLOGO / PACIENTE)
+    # 2. Convertimos el historial a un guion (PSICÓLOGO / PACIENTE)
     texto_transcripcion = ""
     for msg in datos.historial:
         if msg.role == "user":
@@ -939,17 +937,17 @@ async def procesar_evaluacion(datos: EvaluacionRequest):
         else:
             texto_transcripcion += f"PACIENTE:\n{msg.content}\n\n"
 
-    # --- NUEVA LÓGICA DE TÍTULOS Y FECHAS ---
+   
     
-    # A) Rescatar el nombre del alumno desde la BD de forma segura
+    # A) Rescatar el nombre del alumno desde la BD 
     nombre_alumno = "Alumno"
     try:
-        # Intentamos buscarlo (si estás usando "id_demo_alumno" esto fallará sin romper el código)
+        
         alumno = await db.Usuarios.find_one({"_id": ObjectId(datos.id_alumno)})
         if alumno:
             nombre_alumno = alumno.get("nombre", "Alumno")
     except Exception:
-        pass # Si el ID es de prueba, se queda como "Alumno"
+        pass 
 
     # B) Contar cuántas sesiones tiene ya este alumno para este trastorno
     numero_sesiones_previas = await db.Sesiones.count_documents({
@@ -966,13 +964,13 @@ async def procesar_evaluacion(datos: EvaluacionRequest):
     fecha_creacion_str = ahora.strftime("%d %b %Y") # Ej: "24 Jun 2026"
     hora_creacion_str = ahora.strftime("%H:%M")     # Ej: "20:33"
 
-    # 3. Guardado rápido en MongoDB (con los nuevos campos)
+    # 3. Guardado rápido en MongoDB 
     nueva_sesion = {
         "titulo": titulo_sesion,
         "tipo": datos.trastorno,
         "fecha_creacion": fecha_creacion_str,
         "hora_creacion": hora_creacion_str,
-        "fecha_iso": ahora, # Lo guardamos en formato ISO para ordenar de forma interna
+        "fecha_iso": ahora,
         "id_alumno": datos.id_alumno,
         "id_profesor": datos.id_profesor,
         "trastorno": datos.trastorno,
@@ -983,7 +981,7 @@ async def procesar_evaluacion(datos: EvaluacionRequest):
     resultado = await db.Sesiones.insert_one(nueva_sesion)
     id_sesion_guardada = str(resultado.inserted_id)
 
-    # 4. Inyectamos los datos reales en tu PROMPT_EVALUADOR
+    # 4. Inyectamos los datos reales en el PROMPT_EVALUADOR
     prompt_final = PROMPT_EVALUADOR.replace("{CASO_CLINICO}", datos.trastorno.capitalize())
     prompt_final = prompt_final.replace("{PERFIL_ESPERADO_DEL_AGENTE}", perfil_esperado)
     prompt_final = prompt_final.replace("{TRANSCRIPCION}", texto_transcripcion)
@@ -1032,7 +1030,7 @@ async def obtener_sesiones_alumno(id_alumno: str):
     sesiones = []
     async for sesion in cursor:
         sesion["_id"] = str(sesion["_id"])
-        sesion.pop("fecha_iso", None) # Limpiamos campos internos que Vue no necesita
+        sesion.pop("fecha_iso", None) 
         sesiones.append(sesion)
         
     return sesiones
